@@ -1,11 +1,13 @@
 import express, { Request, Response } from 'express';
-import fs from 'fs';
+import http from 'http';
 import path from 'path';
 import morgan from 'morgan';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { initKafka } from './producer/kafka';
+import { setupWebSocket } from './websocket/server';
 dotenv.config();
 
 const environment = process.env.NODE_ENV || "development"
@@ -69,20 +71,20 @@ app.use((req: Request, res: Response) => {
   sendError(req, res);
 });
 
-const PORT = port;
+const server = http.createServer(app);
+setupWebSocket(server);
 
 (async () => {
   try {
-    
+    await initKafka();
 
-    app.listen(PORT, () => {
-      if (environment == "production") {
-        console.log(`✅ Server is running on port: ${PORT}`);
-      } else {
-        console.log(`✅ Server is running on http://localhost:${PORT}`);
-      }
+    server.listen(port, () => {
+      const url = environment === 'production' ? `:${port}` : `http://localhost:${port}`;
+      console.log(`✅ Server is running on ${url}`);
     });
+    
   } catch (err) {
-    process.exit(1); 
+    console.error('❌ Server start failed:', err);
+    process.exit(1);
   }
 })();
