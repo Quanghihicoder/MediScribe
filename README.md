@@ -44,25 +44,47 @@ ReactJS, TailwindCSS, NodeJS, Python, Kafka, Docker
 # 🔁 System Flow
 
 [Browser UI Mic audio]
+
 ↓
+
 [React Frontend Client]
+
 ↓
+
 Socket: audio:send
+
 ↓
+
 [Node.js Backend]
+
 ↓
+
 Kafka Topic: audio.send
+
 ↓
+
 [Transcriber (transcribes with Whisper)]
+
 ↓
+
 Kafka Topic: transcription.data
+
 ↓
+
 [Summarizer (LLM, formats to SOAP note)]
+
 ↓
+
 Kafka Topic: summary.results
+
 ↓
+
 [Node.js Backend]
+
 ↓
+
 Socket: summary:results
+
 ↓
+
 [React Frontend Client]
