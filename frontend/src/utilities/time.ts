@@ -10,5 +10,5 @@ export const formatTimeInMinutes = (seconds: number) => {
     const minutes = getMinutes(seconds)
     const remaining = getRemainingSeconds(seconds)
     
-    return (minutes > 10 ? minutes.toString() : "0" + minutes.toString()) + ":" + (remaining > 10 ? remaining.toString() : "0"+ remaining.toString())
+    return (minutes >= 10 ? minutes.toString() : "0" + minutes.toString()) + ":" + (remaining >= 10 ? remaining.toString() : "0"+ remaining.toString())
 }
