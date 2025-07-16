@@ -35,6 +35,8 @@ Speech this passage (or put it into Google Translate and play the audio):
 
 `Hi, my name's John. I'm 45 years old. I came in today because I've been having chest pain for the last couple of days. It gets worse when I’m doing things — like walking up stairs — but it doesn’t spread anywhere, it just stays in my chest.`
 
+`Hi, I’m Lisa, I’m 38 years old. I came in today because I’ve been having this nagging pain in my lower abdomen for about a week now. It’s a dull ache that comes and goes, but it’s been getting more frequent. It’s worse when I’m sitting for a long time or right before my period. I haven’t had any nausea or fever, but it’s starting to worry me.`
+
 # Keywords
 
 ReactJS, TailwindCSS, NodeJS, Python, Kafka, Docker
