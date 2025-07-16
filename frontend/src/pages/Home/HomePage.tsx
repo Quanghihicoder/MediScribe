@@ -22,19 +22,22 @@ function HomePage() {
   const setupMediaRecorderOnly = (stream: MediaStream) => {
     if (socket == null) return;
 
-    let audioChunks = [];
+    const audioChunks: BlobPart[] = [];
     mediaRecorderRef.current = new MediaRecorder(stream, {
       mimeType: "audio/webm;codecs=opus",
     });
-    mediaRecorderRef.current.ondataavailable = (event) => {
+
+    mediaRecorderRef.current.ondataavailable = (event: BlobEvent) => {
       if (event.data.size > 0) {
         audioChunks.push(event.data);
-        socket.emit("audio:send", event.data);
       }
     };
 
     mediaRecorderRef.current.start(10);
     setRecordingStatus(1);
+
+    // Save audioChunks so handleStop can use it
+    audioChunksRef.current = audioChunks;
   };
 
   const handleStart = async () => {
