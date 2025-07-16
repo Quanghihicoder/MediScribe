@@ -12,8 +12,8 @@ Give me a ⭐️ if you like this project.
 
 ## Pre-check
 
-Free up these ports on your system:
-2181 (Zookeeper), 9092 (Kafka), 8000 (Backend), 5173 (Frontend)
+Free up these ports on your system: 2181 (Zookeeper), 9092 (Kafka), 8000 (Backend), 5173 (Frontend)
+
 Make sure Docker is installed
 
 ## RUN
@@ -43,47 +43,23 @@ ReactJS, TailwindCSS, NodeJS, Python, Kafka, Docker
 
 # 🔁 System Flow
 
-[Browser UI Mic audio]
+[Browser UI Mic audio] → [React Frontend Client] → Socket: audio:send
 
 ↓
 
-[React Frontend Client]
+[Node.js Backend] → Kafka Topic: audio.send
 
 ↓
 
-Socket: audio:send
+[Transcriber (transcribes with Whisper)] → Kafka Topic: transcription.data
 
 ↓
 
-[Node.js Backend]
+[Summarizer (LLM, formats to SOAP note)] → Kafka Topic: summary.results
 
 ↓
 
-Kafka Topic: audio.send
-
-↓
-
-[Transcriber (transcribes with Whisper)]
-
-↓
-
-Kafka Topic: transcription.data
-
-↓
-
-[Summarizer (LLM, formats to SOAP note)]
-
-↓
-
-Kafka Topic: summary.results
-
-↓
-
-[Node.js Backend]
-
-↓
-
-Socket: summary:results
+[Node.js Backend] → Socket: summary:results
 
 ↓
 
