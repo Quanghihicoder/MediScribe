@@ -1,6 +1,6 @@
 # 🧩 MediScribe – Speech to Clinical Notes
 
-MediScribe is a full-stack web app that lets you upload your speech and get instant clinical notes.
+MediScribe is a full-stack web app that allows you to upload your speech and instantly generate clinical notes.
 
 Give me a ⭐️ if you like this project.
 
