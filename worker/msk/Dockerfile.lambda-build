@@ -1,0 +1,19 @@
+FROM python:3.10-slim
+
+# Install required tools
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    netcat-openbsd \
+    python3 \
+    git
+
+# Set work directory
+WORKDIR /var/task
+
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+RUN mkdir package && \
+    pip install --no-cache-dir -r requirements.txt --target ./package
+
+# Copy the rest of the application
+COPY handler.py .

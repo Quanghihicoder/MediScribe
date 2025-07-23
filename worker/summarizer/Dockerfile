@@ -9,14 +9,12 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy all files
-COPY . .
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install pip packages
-RUN pip install --no-cache-dir \
-    openai \
-    python-dotenv \
-    kafka-python 
+# Copy the rest of the application
+COPY . .
 
 # Run the script
 CMD ["python", "-u", "app.py"]

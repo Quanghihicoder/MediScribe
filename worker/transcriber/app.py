@@ -2,11 +2,9 @@ from kafka import KafkaConsumer, KafkaProducer
 import whisper
 import base64
 import json
-import io
 import os
 import tempfile
 import subprocess
-import soundfile as sf
 
 # Load Whisper model
 model = whisper.load_model("small")  # or "base", "small", "medium", "large" based on your needs

@@ -4,14 +4,17 @@ import morgan from "morgan";
 import cors from "cors";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
-import { Kafka } from "kafkajs";
+import { Kafka, SASLOptions } from "kafkajs";
 import { Server } from "socket.io";
+import { fromEnv } from "@aws-sdk/credential-providers";
 import dotenv from "dotenv";
 dotenv.config();
 
 const environment = process.env.NODE_ENV || "development";
 const port = process.env.PORT || 8000;
 const allowedOrigins = process.env.ALLOW_ORIGIN?.split(",") || [];
+const mskBrokers = process.env.MSK_BROKERS?.split(",") || ["kafka:9092"];
+const mskAuthIdentity = process.env.MSK_AUTHORIZATION_IDENTITY || "";
 
 const app = express();
 
@@ -77,19 +80,38 @@ const io = new Server(server, {
   },
 });
 
-const kafka = new Kafka({
+const kafkaConfig = {
   clientId: "mediscribe",
-  brokers: ["kafka:9092"],
-});
+  brokers: mskBrokers,
+};
+
+// Add SSL/SASL only for production
+if (environment != "development") {
+  const credentials = fromEnv();
+
+  const sasl: SASLOptions = {
+    mechanism: "aws",
+    authorizationIdentity: mskAuthIdentity,
+    accessKeyId: (await credentials()).accessKeyId,
+    secretAccessKey: (await credentials()).secretAccessKey,
+  };
+
+  Object.assign(kafkaConfig, {
+    ssl: true,
+    sasl,
+  });
+}
+
+const kafka = new Kafka(kafkaConfig);
 
 const admin = kafka.admin();
 const producer = kafka.producer();
 const consumer = kafka.consumer({ groupId: "speech-to-summary-group" });
 
-const audioSendTopic = "audio.send"
-const transcriptionDataTopic = "transcription.data"
-const transcriptionResultsTopic = "transcription.results"
-const summaryResultsTopic = "summary.results"
+const audioSendTopic = "audio.send";
+const transcriptionDataTopic = "transcription.data";
+const transcriptionResultsTopic = "transcription.results";
+const summaryResultsTopic = "summary.results";
 
 async function waitForKafkaTopicReady(topic: string, timeoutMs = 30000) {
   await admin.connect();
@@ -98,10 +120,12 @@ async function waitForKafkaTopicReady(topic: string, timeoutMs = 30000) {
   while (Date.now() - start < timeoutMs) {
     try {
       const metadata = await admin.fetchTopicMetadata({ topics: [topic] });
-      const topicMeta = metadata.topics.find(t => t.name === topic);
+      const topicMeta = metadata.topics.find((t) => t.name === topic);
 
       if (topicMeta && topicMeta.partitions.length > 0) {
-        const allHaveLeaders = topicMeta.partitions.every(p => p.leader !== -1);
+        const allHaveLeaders = topicMeta.partitions.every(
+          (p) => p.leader !== -1
+        );
         if (allHaveLeaders) {
           console.log(`✅ Kafka topic "${topic}" is fully ready.`);
           await admin.disconnect();
@@ -112,7 +136,7 @@ async function waitForKafkaTopicReady(topic: string, timeoutMs = 30000) {
       console.log(`⏳ Waiting for topic "${topic}" metadata to stabilize...`);
     }
 
-    await new Promise(res => setTimeout(res, 2000));
+    await new Promise((res) => setTimeout(res, 2000));
   }
 
   await admin.disconnect();
@@ -124,8 +148,14 @@ async function connectKafka() {
   await consumer.connect();
 
   // Subscribe to multiple topics with one consumer
-  await consumer.subscribe({ topic: transcriptionResultsTopic, fromBeginning: false });
-  await consumer.subscribe({ topic: summaryResultsTopic, fromBeginning: false });
+  await consumer.subscribe({
+    topic: transcriptionResultsTopic,
+    fromBeginning: false,
+  });
+  await consumer.subscribe({
+    topic: summaryResultsTopic,
+    fromBeginning: false,
+  });
 
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
@@ -179,13 +209,13 @@ io.on("connection", (socket) => {
 
 (async () => {
   try {
-    await waitForKafkaTopicReady(audioSendTopic)
-    await waitForKafkaTopicReady(transcriptionDataTopic)
-    await waitForKafkaTopicReady(transcriptionResultsTopic)
-    await waitForKafkaTopicReady(summaryResultsTopic)
+    await waitForKafkaTopicReady(audioSendTopic);
+    await waitForKafkaTopicReady(transcriptionDataTopic);
+    await waitForKafkaTopicReady(transcriptionResultsTopic);
+    await waitForKafkaTopicReady(summaryResultsTopic);
 
     await connectKafka().catch(console.error);
-    
+
     server.listen(port, () => {
       const url =
         environment === "production" ? `:${port}` : `http://localhost:${port}`;
