@@ -1,0 +1,45 @@
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+}
+variable "region_id" {
+  description = "ID of the AWS Region"
+  type        = string
+}
+variable "hosted_zone_id" {
+  description = "ID of the existing hosted zone"
+  type        = string
+}
+variable "acm_certificate_arn" {
+  description = "ARN of the existing cloudfront certificate for the domain (it must be in us-east-1)"
+  type        = string
+}
+
+variable "vpc_id" {
+  description = "ID of existing the VPC"
+  type        = string
+}
+
+variable "aza" {
+  description = "Availability Zone A of the AWS region"
+  type        = string
+}
+
+variable "azb" {
+  description = "Availability Zone B of the AWS region"
+  type        = string
+}
+
+variable "public_route_table_id" {
+  description = "ID of the existing public route table"
+  type        = string
+}
+
+variable "ecs_image_url" {
+  description = "Container Image URL in ECR"
+  type        = string
+}
+
+variable "openai_api_key" {
+  type = string
+}
