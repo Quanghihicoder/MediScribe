@@ -17,6 +17,4 @@ cd worker/summarizer
 echo "OPENAI_API_KEY='$TOKEN'" >> .env
 cd ../../
 
-
-
 echo ".env files copied successfully."
