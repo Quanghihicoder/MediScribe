@@ -4,9 +4,8 @@ import morgan from "morgan";
 import cors from "cors";
 import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
-import { Kafka, SASLOptions } from "kafkajs";
+import { Admin, Consumer, Kafka, Producer } from "kafkajs";
 import { Server } from "socket.io";
-import { fromEnv } from "@aws-sdk/credential-providers";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -14,7 +13,11 @@ const environment = process.env.NODE_ENV || "development";
 const port = process.env.PORT || 8000;
 const allowedOrigins = process.env.ALLOW_ORIGIN?.split(",") || [];
 const mskBrokers = process.env.MSK_BROKERS?.split(",") || ["kafka:9092"];
-const mskAuthIdentity = process.env.MSK_AUTHORIZATION_IDENTITY || "";
+
+const audioSendTopic = "audio.send";
+const transcriptionDataTopic = "transcription.data";
+const transcriptionResultsTopic = "transcription.results";
+const summaryResultsTopic = "summary.results";
 
 const app = express();
 
@@ -72,48 +75,20 @@ app.use((req: Request, res: Response) => {
   sendError(req, res);
 });
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
-
-const kafkaConfig = {
-  clientId: "mediscribe",
-  brokers: mskBrokers,
-};
-
-// Add SSL/SASL only for production
-if (environment != "development") {
-  const credentials = fromEnv();
-
-  const sasl: SASLOptions = {
-    mechanism: "aws",
-    authorizationIdentity: mskAuthIdentity,
-    accessKeyId: (await credentials()).accessKeyId,
-    secretAccessKey: (await credentials()).secretAccessKey,
+async function getKafkaConfig() {
+  const config = {
+    clientId: "mediscribe",
+    brokers: mskBrokers,
   };
 
-  Object.assign(kafkaConfig, {
-    ssl: true,
-    sasl,
-  });
+  return config;
 }
 
-const kafka = new Kafka(kafkaConfig);
-
-const admin = kafka.admin();
-const producer = kafka.producer();
-const consumer = kafka.consumer({ groupId: "speech-to-summary-group" });
-
-const audioSendTopic = "audio.send";
-const transcriptionDataTopic = "transcription.data";
-const transcriptionResultsTopic = "transcription.results";
-const summaryResultsTopic = "summary.results";
-
-async function waitForKafkaTopicReady(topic: string, timeoutMs = 30000) {
+async function waitForKafkaTopicReady(
+  admin: Admin,
+  topic: string,
+  timeoutMs = 30000
+) {
   await admin.connect();
 
   const start = Date.now();
@@ -143,7 +118,7 @@ async function waitForKafkaTopicReady(topic: string, timeoutMs = 30000) {
   throw new Error(`❌ Kafka topic "${topic}" not ready after ${timeoutMs}ms`);
 }
 
-async function connectKafka() {
+async function connectKafka(producer: Producer, consumer: Consumer, io: Server) {
   await producer.connect();
   await consumer.connect();
 
@@ -178,43 +153,59 @@ async function connectKafka() {
   });
 }
 
-// Handle WebSocket connections
-io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
-
-  socket.on("audio:send", async (audioData) => {
-    try {
-      // Send audio chunk to Kafka for processing
-      await producer.send({
-        topic: audioSendTopic,
-        messages: [
-          {
-            value: JSON.stringify({
-              sessionId: socket.id,
-              audio: audioData.toString("base64"),
-              timestamp: new Date().toISOString(),
-            }),
-          },
-        ],
-      });
-    } catch (error) {
-      console.error("Error sending to Kafka:", error);
-    }
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
-  });
-});
-
 (async () => {
   try {
-    await waitForKafkaTopicReady(audioSendTopic);
-    await waitForKafkaTopicReady(transcriptionDataTopic);
-    await waitForKafkaTopicReady(transcriptionResultsTopic);
-    await waitForKafkaTopicReady(summaryResultsTopic);
 
-    await connectKafka().catch(console.error);
+    const server = http.createServer(app);
+    const io = new Server(server, {
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+      },
+    });
+
+    const kafkaConfig = await getKafkaConfig();
+    const kafka = new Kafka(kafkaConfig);
+
+    const admin = kafka.admin();
+    const producer = kafka.producer();
+    const consumer = kafka.consumer({ groupId: "speech-to-summary-group" });
+
+    await waitForKafkaTopicReady(admin, audioSendTopic);
+    await waitForKafkaTopicReady(admin, transcriptionDataTopic);
+    await waitForKafkaTopicReady(admin, transcriptionResultsTopic);
+    await waitForKafkaTopicReady(admin, summaryResultsTopic);
+
+    await connectKafka(producer, consumer, io).catch(console.error);
+
+    // Handle WebSocket connections
+    io.on("connection", (socket) => {
+      console.log("Client connected:", socket.id);
+
+      socket.on("audio:send", async (audioData) => {
+        try {
+          // Send audio chunk to Kafka for processing
+          await producer.send({
+            topic: audioSendTopic,
+            messages: [
+              {
+                value: JSON.stringify({
+                  sessionId: socket.id,
+                  audio: audioData.toString("base64"),
+                  timestamp: new Date().toISOString(),
+                }),
+              },
+            ],
+          });
+        } catch (error) {
+          console.error("Error sending to Kafka:", error);
+        }
+      });
+
+      socket.on("disconnect", () => {
+        console.log("Client disconnected:", socket.id);
+      });
+    });
 
     server.listen(port, () => {
       const url =

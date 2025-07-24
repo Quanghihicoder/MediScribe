@@ -12,8 +12,7 @@ WORKDIR /var/task
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
-RUN mkdir package && \
-    pip install --no-cache-dir -r requirements.txt --target ./package
+RUN pip install --no-cache-dir -r requirements.txt --target .
 
 # Copy the rest of the application
 COPY handler.py .

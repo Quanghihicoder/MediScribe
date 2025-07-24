@@ -1,11 +1,9 @@
-#!/bin/bash
+@echo off
+REM Authenticate to ECR
+aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com
 
-# Authenticate to ECR
-aws ecr get-login-password --region ap-southeast-2 | \
-  docker login --username AWS --password-stdin 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com
-
-# Build Docker image ( Very important if build from Mac M chip)
-docker buildx build --platform linux/amd64 -f ../backend/Dockerfile -t mediscribe ../backend --load
+REM Build Docker image (Very important if build from Mac M chip)
+docker buildx build --platform linux/amd64 -f ..\backend\Dockerfile -t mediscribe ..\backend --load
 docker tag mediscribe:latest 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe:latest
 docker push 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe:latest
 
@@ -13,22 +11,19 @@ docker buildx build --platform linux/amd64 -f ../worker/transcriber/Dockerfile.l
 docker tag mediscribe/transcriber:latest 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/transcriber:latest
 docker push 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/transcriber:latest
 
-# Build and Zip Lambdas
-cd ../worker/summarizer/
-./build.sh
+REM Build and Zip Lambdas
+cd ..\worker\summarizer\
+call build.bat
 
-# cd ../transcriber/
-# ./build.sh
+cd ..\msk\
+call build.bat
 
-cd ../msk/
-./build.sh
-
-cd ../../frontend
+cd ..\..\frontend
 npm install
 npm run build
 
-cd ../devops
+cd ..\devops
 terraform init
 terraform apply -auto-approve
 
-aws s3 sync ../frontend/dist s3://mediscribe-frontend --delete
+aws s3 sync ..\frontend\dist s3://mediscribe-frontend --delete

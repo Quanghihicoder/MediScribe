@@ -33,7 +33,6 @@ resource "aws_lambda_invocation" "create_topics" {
   function_name = var.msk_function_name
 
   input = jsonencode({
-    cluster_arn        = var.msk_cluster_arn
     topic_name         = each.value.topic
     partitions         = each.value.partitions
     replication_factor = each.value.replication_factor

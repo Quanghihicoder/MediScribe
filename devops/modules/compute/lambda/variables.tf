@@ -47,7 +47,12 @@ variable "aws_region" {
 }
 
 variable "msk_cluster_arn" {
-  type = string
+  type        = string
+}
+
+variable "msk_bootstrap_brokers" {
+  description = "Comma-separated list of MSK bootstrap brokers"
+  type        = string
 }
 
 variable "openai_api_key" {

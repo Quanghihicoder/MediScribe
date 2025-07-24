@@ -1,19 +1,15 @@
-FROM python:3.10-slim
+# Use official AWS Lambda base image
+FROM public.ecr.aws/lambda/python:3.10
 
-# Install required tools
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    netcat-openbsd \
-    python3 \
-    git
-
-# Set work directory
+# Set the working directory
 WORKDIR /var/task
 
-# Copy requirements first to leverage Docker cache
+# Copy requirements and install them
 COPY requirements.txt .
-RUN mkdir package && \
-    pip install --no-cache-dir -r requirements.txt --target ./package
+RUN pip install --no-cache-dir -r requirements.txt --target .
 
-# Copy the rest of the application
+# Copy your actual handler code
 COPY handler.py .
+
+# Set the correct handler for Lambda (file.function_name)
+CMD ["handler.handler"]

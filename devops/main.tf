@@ -48,11 +48,11 @@ locals {
   lambdas = {
     summarizer = {
       name    = "summarizer"
-      timeout = 60 # 1 minute
+      timeout = 900 # 1 minute
     }
     transcriber = {
       name    = "transcriber"
-      timeout = 60 # 1 minute
+      timeout = 900 # 1 minute
     }
     msk = {
       name    = "msk"
@@ -149,7 +149,9 @@ module "ecs" {
   app_name                  = local.app_name
   aws_region                = var.aws_region
   frontend_url              = "https://${local.app_buckets.frontend.domain}"
-  msk_bootstrap_brokers_tls = module.msk.msk_bootstrap_brokers_tls
+  msk_bootstrap_brokers = module.msk.msk_bootstrap_brokers
+
+  depends_on = [ module.topics ]
 }
 
 module "lambda" {
@@ -166,14 +168,14 @@ module "lambda" {
   lambda_msk_sg_id           = module.security_groups.lambda_msk_sg_id
   lambda_exec_role_arn       = module.iam.lambda_exec_role_arn
   aws_region                 = var.aws_region
-  msk_cluster_arn            = module.msk.msk_cluster_arn
+  msk_cluster_arn = module.msk.msk_cluster_arn
+  msk_bootstrap_brokers      = module.msk.msk_bootstrap_brokers
   openai_api_key             = var.openai_api_key
 }
 
 module "topics" {
   source = "./modules/messaging/topics"
 
-  msk_cluster_arn   = module.msk.msk_cluster_arn
   msk_function_name = module.lambda.msk_function_name
 
   depends_on = [module.msk, module.lambda]

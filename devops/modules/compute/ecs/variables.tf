@@ -54,7 +54,7 @@ variable "alb_target_group_arn" {
   type        = string
 }
 
-variable "msk_bootstrap_brokers_tls" {
-  description = "Comma-separated list of MSK bootstrap brokers (TLS)"
+variable "msk_bootstrap_brokers" {
+  description = "Comma-separated list of MSK bootstrap brokers"
   type        = string
 }

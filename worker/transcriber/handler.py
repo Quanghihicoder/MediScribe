@@ -1,74 +1,49 @@
+print("Trigger")
+
 import whisper
 import base64
 import json
 import os
 import tempfile
 import subprocess
-import boto3
 from kafka import KafkaConsumer, KafkaProducer
 from typing import Dict, Any
+from dotenv import load_dotenv
+load_dotenv()
 
 # Load Whisper model (load once at module level)
-model = whisper.load_model("small")  # or "base", "small", "medium", "large" based on your needs
+model = whisper.load_model("base")  # or "base", "small", "medium", "large" based on your needs
 
-def get_iam_auth_token() -> Dict[str, str]:
-    """Generate IAM authentication token for MSK"""
-    client = boto3.client('kafka')
-    response = client.get_bootstrap_brokers(
-        ClusterArn=os.getenv('MSK_CLUSTER_ARN')
-    )
-    return {
-        'bootstrap_servers': response['BootstrapBrokerStringSaslIam'],
-        'security_protocol': 'SASL_SSL',
-        'sasl_mechanism': 'AWS_MSK_IAM',
-        'sasl_jaas_config': 'software.amazon.msk.auth.iam.IAMLoginModule required;',
-        'sasl_client_callback': 'software.amazon.msk.auth.iam.IAMClientCallbackHandler'
-    }
+print("Model")
 
 def get_kafka_config() -> Dict[str, Any]:
-    """Get Kafka configuration with IAM auth"""
-    try:
-        return get_iam_auth_token()
-    except Exception as e:
-        print(f"Error getting IAM auth token: {e}")
+    return {
+        'bootstrap_servers': os.getenv("MSK_BROKERS").split(","), 
+        'security_protocol': 'PLAINTEXT',
+        'topic_prefix': os.getenv('TOPIC_PREFIX', '')
+    }
     
-
 def create_kafka_consumer(config: Dict[str, Any]) -> KafkaConsumer:
-    """Create and return a Kafka consumer with IAM auth"""
+    topic_name = f"{config.get('topic_prefix', '')}audio.send"
     consumer_config = {
         "bootstrap_servers": config["bootstrap_servers"],
         "auto_offset_reset": "latest",
         "group_id": "transcription-group",
-        "security_protocol": config.get("security_protocol", "PLAINTEXT"),
+        "security_protocol": "PLAINTEXT"
     }
-    
-    if config.get("security_protocol") == "SASL_SSL":
-        consumer_config.update({
-            "sasl_mechanism": config.get("sasl_mechanism", "AWS_MSK_IAM"),
-            "sasl_jaas_config": config.get("sasl_jaas_config"),
-            "sasl_client_callback": config.get("sasl_client_callback"),
-        })
-    
-    topic_name = f"{config.get('topic_prefix', '')}audio.send"
     return KafkaConsumer(topic_name, **consumer_config)
 
 def create_kafka_producer(config: Dict[str, Any]) -> KafkaProducer:
-    """Create and return a Kafka producer with IAM auth"""
     producer_config = {
         "bootstrap_servers": config["bootstrap_servers"],
-        "security_protocol": config.get("security_protocol", "PLAINTEXT"),
+        "security_protocol": "PLAINTEXT"
     }
-    
-    if config.get("security_protocol") == "SASL_SSL":
-        producer_config.update({
-            "sasl_mechanism": config.get("sasl_mechanism", "AWS_MSK_IAM"),
-            "sasl_jaas_config": config.get("sasl_jaas_config"),
-            "sasl_client_callback": config.get("sasl_client_callback"),
-        })
     
     return KafkaProducer(**producer_config)
 
 def process_audio(audio_data):
+    print("Audio")
+
     try:
         audio_bytes = base64.b64decode(audio_data)
 
@@ -98,12 +73,18 @@ def process_audio(audio_data):
     except Exception as e:
         print(f"Error processing audio: {e}")
         return ""
+        
+        
+print("Bro")
+
 
 def handler(event=None, context=None):
     try:
         # Get Kafka configuration with IAM auth
         kafka_config = get_kafka_config()
         
+        print("AAAA")
+
         # Create Kafka consumer and producer
         consumer = create_kafka_consumer(kafka_config)
         producer = create_kafka_producer(kafka_config)
@@ -112,6 +93,8 @@ def handler(event=None, context=None):
         topic_prefix = kafka_config.get("topic_prefix", "")
         transcription_data_topic = f"{topic_prefix}transcription.data"
         transcription_results_topic = f"{topic_prefix}transcription.results"
+
+        print("Hello")
         
         # Process messages
         for message in consumer:

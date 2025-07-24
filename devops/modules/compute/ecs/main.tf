@@ -57,7 +57,7 @@ resource "aws_ecs_task_definition" "mediscribe_app_task" {
 
         { name = "AWS_REGION", value = "${var.aws_region}" },
 
-        { name = "MSK_BROKERS", value = "${var.msk_bootstrap_brokers_tls}" }
+        { name = "MSK_BROKERS", value = "${var.msk_bootstrap_brokers}" }
       ],
       portMappings = [{
         containerPort = 8000

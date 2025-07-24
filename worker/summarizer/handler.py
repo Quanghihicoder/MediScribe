@@ -2,67 +2,36 @@ from kafka import KafkaConsumer, KafkaProducer
 import openai
 import json
 import os
-import boto3
 from typing import Dict, Any
-# from dotenv import load_dotenv
-# load_dotenv()
+from dotenv import load_dotenv
+load_dotenv()
 
 client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def get_iam_auth_token() -> Dict[str, str]:
-    """Generate IAM authentication token for MSK"""
-    client = boto3.client('kafka')
-    response = client.get_bootstrap_brokers(
-        ClusterArn=os.getenv('MSK_CLUSTER_ARN')
-    )
+def get_kafka_config() -> Dict[str, Any]:
     return {
-        'bootstrap_servers': response['BootstrapBrokerStringSaslIam'],
-        'security_protocol': 'SASL_SSL',
-        'sasl_mechanism': 'AWS_MSK_IAM',
-        'sasl_jaas_config': 'software.amazon.msk.auth.iam.IAMLoginModule required;',
-        'sasl_client_callback': 'software.amazon.msk.auth.iam.IAMClientCallbackHandler'
+        'bootstrap_servers': os.getenv("MSK_BROKERS").split(","),  
+        'security_protocol': 'PLAINTEXT',
+        'topic_prefix': os.getenv('TOPIC_PREFIX', '')
     }
 
-def get_kafka_config() -> Dict[str, Any]:
-    """Get Kafka configuration with IAM auth"""
-    try:
-        return get_iam_auth_token()
-    except Exception as e:
-        print(f"Error getting IAM auth token: {e}")
-
-def create_kafka_consumer(config: Dict[str, Any]) -> KafkaConsumer:
-    """Create and return a Kafka consumer with IAM auth"""
+def create_kafka_consumer(config: Dict[str, Any]) -> KafkaConsumer:  
+    topic_name = f"{config.get('topic_prefix', '')}transcription.data"
     consumer_config = {
         "bootstrap_servers": config["bootstrap_servers"],
         "auto_offset_reset": "latest",
         "group_id": "summary-group",
-        "security_protocol": config.get("security_protocol", "PLAINTEXT"),
+        "security_protocol": "PLAINTEXT"
     }
-    
-    if config.get("security_protocol") == "SASL_SSL":
-        consumer_config.update({
-            "sasl_mechanism": config.get("sasl_mechanism", "AWS_MSK_IAM"),
-            "sasl_jaas_config": config.get("sasl_jaas_config"),
-            "sasl_client_callback": config.get("sasl_client_callback"),
-        })
-    
-    topic_name = f"{config.get('topic_prefix', '')}transcription.data"
+
     return KafkaConsumer(topic_name, **consumer_config)
 
 
 def create_kafka_producer(config: Dict[str, Any]) -> KafkaProducer:
-    """Create and return a Kafka producer with IAM auth"""
     producer_config = {
         "bootstrap_servers": config["bootstrap_servers"],
-        "security_protocol": config.get("security_protocol", "PLAINTEXT"),
+        "security_protocol": "PLAINTEXT"
     }
-    
-    if config.get("security_protocol") == "SASL_SSL":
-        producer_config.update({
-            "sasl_mechanism": config.get("sasl_mechanism", "AWS_MSK_IAM"),
-            "sasl_jaas_config": config.get("sasl_jaas_config"),
-            "sasl_client_callback": config.get("sasl_client_callback"),
-        })
     
     return KafkaProducer(**producer_config)
 
