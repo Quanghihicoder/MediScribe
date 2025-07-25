@@ -58,3 +58,18 @@ variable "msk_bootstrap_brokers" {
   description = "Comma-separated list of MSK bootstrap brokers"
   type        = string
 }
+
+
+variable "private_subnet_a_id" {
+  description = "ID of the private subnet A"
+  type        = string
+}
+
+variable "private_subnet_b_id" {
+  description = "ID of the private subnet B"
+  type        = string
+}
+
+variable "openai_api_key" {
+  type = string
+}

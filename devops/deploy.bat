@@ -11,9 +11,9 @@ docker buildx build --platform linux/amd64 -f ../worker/transcriber/Dockerfile.l
 docker tag mediscribe/transcriber:latest 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/transcriber:latest
 docker push 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/transcriber:latest
 
-REM Build and Zip Lambdas
-cd ..\worker\summarizer\
-call build.bat
+docker buildx build --platform linux/amd64 -f ../worker/summarizer/Dockerfile.lambda-build -t mediscribe/summarizer ../worker/summarizer --load
+docker tag mediscribe/summarizer:latest 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/summarizer:latest
+docker push 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/summarizer:latest
 
 cd ..\msk\
 call build.bat

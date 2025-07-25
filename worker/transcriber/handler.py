@@ -1,5 +1,3 @@
-print("Trigger")
-
 import whisper
 import base64
 import json
@@ -12,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Load Whisper model (load once at module level)
+
 model = whisper.load_model("base")  # or "base", "small", "medium", "large" based on your needs
 
 print("Model")
@@ -140,3 +139,6 @@ def handler(event=None, context=None):
     except Exception as e:
         print(f"Error initializing Kafka client: {e}")
         raise
+
+if __name__ == "__main__":
+    handler()

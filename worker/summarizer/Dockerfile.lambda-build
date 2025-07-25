@@ -8,11 +8,14 @@ RUN apt-get update && apt-get install -y \
     git
 
 # Set work directory
-WORKDIR /var/task
+WORKDIR /app
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt --target .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY handler.py .
+
+# Run the script
+CMD ["python", "-u", "handler.py"]

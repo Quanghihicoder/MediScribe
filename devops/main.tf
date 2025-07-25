@@ -150,6 +150,9 @@ module "ecs" {
   aws_region                = var.aws_region
   frontend_url              = "https://${local.app_buckets.frontend.domain}"
   msk_bootstrap_brokers = module.msk.msk_bootstrap_brokers
+  private_subnet_a_id = module.networking.private_subnet_a_id
+  private_subnet_b_id = module.networking.private_subnet_b_id
+  openai_api_key = var.openai_api_key
 
   depends_on = [ module.topics ]
 }

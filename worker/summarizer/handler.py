@@ -106,3 +106,5 @@ def handler(event=None, context=None):
         print(f"Error initializing Kafka client: {e}")
         raise
 
+if __name__ == "__main__":
+    handler()
