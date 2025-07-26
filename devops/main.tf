@@ -120,7 +120,7 @@ module "alb" {
   vpc_id             = var.vpc_id
   hosted_zone_id     = var.hosted_zone_id
   alb_sg_id          = module.security_groups.alb_sg_id
-  alb_logs_bucket    = local.logs_buckets.alb.name
+  alb_logs_bucket    = module.s3.alb_logs_bucket
   backend_domain     = local.backend_domain
 }
 
