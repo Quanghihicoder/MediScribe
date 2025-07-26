@@ -1,4 +1,18 @@
 @echo off
+
+REM Create ECR
+aws ecr create-repository ^
+  --repository-name mediscribe/backend ^
+  --region ap-southeast-2
+
+aws ecr create-repository ^
+  --repository-name mediscribe/transcriber ^
+  --region ap-southeast-2
+
+aws ecr create-repository ^
+  --repository-name mediscribe/summarizer ^
+  --region ap-southeast-2
+
 REM Create Terraform bucket
 aws s3 mb s3://mediscribe-terraform --region ap-southeast-2
 
