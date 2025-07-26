@@ -30,7 +30,7 @@ locals {
 resource "aws_lambda_invocation" "create_topics" {
   for_each = local.kafka_topics
 
-  function_name = var.msk_function_name
+  function_name = var.msk_topic_creator_function_name
 
   input = jsonencode({
     topic_name         = each.value.topic

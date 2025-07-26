@@ -1,7 +1,3 @@
-resource "aws_ecs_cluster" "mediscribe_ecs" {
-  name = var.app_name
-}
-
 data "aws_ami" "ecs_ami" {
   most_recent = true
   owners      = ["amazon"]
@@ -12,51 +8,52 @@ data "aws_ami" "ecs_ami" {
   }
 }
 
-resource "aws_instance" "mediscribe_ecs_ec2" {
+resource "aws_ecs_cluster" "backend" {
+  name = "${var.project_name}-backend"
+}
+
+resource "aws_instance" "backend" {
   ami                         = data.aws_ami.ecs_ami.id
   instance_type               = var.instance_type # it is cheaper to use t3.small running 4 tasks than t3.micro but can only run 1 task which will need to add more ec2 instances
   subnet_id                   = var.public_subnet_a_id
-  iam_instance_profile        = var.iam_instance_profile_name
-  security_groups             = [var.ecs_sg_id]
+  iam_instance_profile        = var.backend_instance_profile_name
+  security_groups             = [var.backend_sg_id]
   associate_public_ip_address = true
 
   user_data = <<EOF
   #!/bin/bash
-  echo ECS_CLUSTER=${aws_ecs_cluster.mediscribe_ecs.name} >> /etc/ecs/ecs.config
+  echo ECS_CLUSTER=${aws_ecs_cluster.backend.name} >> /etc/ecs/ecs.config
   echo "ECS_AVAILABLE_LOGGING_DRIVERS=[\"json-file\",\"awslogs\"]" >> /etc/ecs/ecs.config
   EOF
 
   tags = {
-    Name = "mediscribe-ecs-ec2-instance"
+    Name = "${var.project_name}-backend-instance"
   }
 }
 
-resource "aws_eip" "mediscribe_eip" {
-  instance = aws_instance.mediscribe_ecs_ec2.id
+resource "aws_eip" "backend_eip" {
+  instance = aws_instance.backend.id
   domain   = "vpc"
 }
 
-resource "aws_ecs_task_definition" "mediscribe_app_task" {
-  family                   = "mediscribe"
+resource "aws_ecs_task_definition" "backend_app_task" {
+  family                   = "${var.project_name}-backend"
   requires_compatibilities = ["EC2"]
   network_mode             = "bridge"
   cpu                      = "256"
   memory                   = "512"
-  task_role_arn            = var.ecs_task_exec_role_arn
+  task_role_arn            = var.backend_task_exec_role_arn
 
   container_definitions = jsonencode([
     {
-      name      = "mediscribe",
-      image     = var.ecs_image_url,
+      name      = "${var.project_name}-backend",
+      image     = var.backend_image_url,
       essential = true,
       environment = [
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "8000" },
-
         { name = "ALLOW_ORIGIN", value = "${var.frontend_url}" },
-
         { name = "AWS_REGION", value = "${var.aws_region}" },
-
         { name = "MSK_BROKERS", value = "${var.msk_bootstrap_brokers}" }
       ],
       portMappings = [{
@@ -66,7 +63,7 @@ resource "aws_ecs_task_definition" "mediscribe_app_task" {
       logConfiguration = {
         logDriver = "awslogs",
         options = {
-          awslogs-group         = var.ecs_logs_group_name
+          awslogs-group         = var.backend_logs_group_name
           awslogs-region        = var.aws_region
           awslogs-stream-prefix = "ecs"
         }
@@ -75,16 +72,16 @@ resource "aws_ecs_task_definition" "mediscribe_app_task" {
   ])
 }
 
-resource "aws_ecs_service" "mediscribe_service" {
-  name            = "mediscribe-service"
-  cluster         = aws_ecs_cluster.mediscribe_ecs.id
-  task_definition = aws_ecs_task_definition.mediscribe_app_task.arn
+resource "aws_ecs_service" "backend" {
+  name            = "${var.project_name}-backend-service"
+  cluster         = aws_ecs_cluster.backend.id
+  task_definition = aws_ecs_task_definition.backend_app_task.arn
   desired_count   = 1
   launch_type     = "EC2"
 
   load_balancer {
     target_group_arn = var.alb_target_group_arn
-    container_name   = "mediscribe"
+    container_name   = "${var.project_name}-backend"
     container_port   = 8000
   }
 }
@@ -98,45 +95,21 @@ resource "aws_ecs_service" "mediscribe_service" {
 
 # =================================================
 
-resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "ecs-task-execution-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "ecr_read_only" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
 
 
+# =================================================
 
-resource "aws_ecs_cluster" "transcriber_cluster" {
-  name = "transcriber-cluster"
+
+resource "aws_ecs_cluster" "transcriber" {
+  name = "${var.project_name}-transcriber"
 }
 
 resource "aws_ecs_task_definition" "transcriber_task" {
-  family                   = "transcriber-task"
+  family                   = "${var.project_name}-transcriber"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn            = var.ecs_task_exec_role_arn
+  execution_role_arn       = var.service_execution_role_arn
+  task_role_arn            = var.service_task_exec_role_arn
   cpu                      = 2048  # 2 vCPU
   memory                   = 4096  # 4GB (Fargate requires specific CPU/memory combinations)
   
@@ -147,37 +120,37 @@ resource "aws_ecs_task_definition" "transcriber_task" {
   }
 
   container_definitions = jsonencode([{
-    name      = "transcriber"
-    image     = "058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/transcriber:latest"
+    name      = "${var.project_name}-transcriber"
+    image     = var.transcriber_image_url
     essential = true
-    command   = ["python", "handler.py"]
+    command   = ["python", "-u" , "app.py"]
     
     environment = [
       { name = "MSK_BROKERS", value = var.msk_bootstrap_brokers }
     ]
     
-    log_configuration = {
+    logConfiguration = {
       logDriver = "awslogs"
       options = {
-        "awslogs-group"         = "/ecs/transcriber"
-        "awslogs-region"        = "ap-southeast-2"
+        "awslogs-group"         = var.transcriber_logs_group_name
+        "awslogs-region"        = var.aws_region
         "awslogs-stream-prefix" = "ecs"
       }
     }
   }])
 }
 
-resource "aws_ecs_service" "transcriber_service" {
-  name            = "transcriber-service"
-  cluster         = aws_ecs_cluster.transcriber_cluster.id
+resource "aws_ecs_service" "transcriber" {
+  name            = "${var.project_name}-transcriber-service"
+  cluster         = aws_ecs_cluster.transcriber.id
   task_definition = aws_ecs_task_definition.transcriber_task.arn
   desired_count   = 1
-  launch_type     = "FARGATE"  # Explicitly set launch type to Fargate
+  launch_type     = "FARGATE" 
 
   network_configuration {
     subnets          = [var.private_subnet_a_id, var.private_subnet_b_id]
-    security_groups  = [var.ecs_sg_id]
-    assign_public_ip = false  # Typically false for private subnets
+    security_groups  = [var.service_sg_id]
+    assign_public_ip = false 
   }
 }
 
@@ -187,16 +160,16 @@ resource "aws_ecs_service" "transcriber_service" {
 
 
 
-resource "aws_ecs_cluster" "summarizer_cluster" {
-  name = "summarizer-cluster"
+resource "aws_ecs_cluster" "summarizer" {
+  name = "${var.project_name}-summarizer"
 }
 
 resource "aws_ecs_task_definition" "summarizer_task" {
-  family                   = "summarizer-task"
+  family                   = "${var.project_name}-summarizer"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn            = var.ecs_task_exec_role_arn
+  execution_role_arn       = var.service_execution_role_arn
+  task_role_arn            = var.service_task_exec_role_arn
   cpu                      = 2048  # 2 vCPU
   memory                   = 4096  # 4GB (Fargate requires specific CPU/memory combinations)
   
@@ -207,37 +180,37 @@ resource "aws_ecs_task_definition" "summarizer_task" {
   }
 
   container_definitions = jsonencode([{
-    name      = "summarizer"
-    image     = "058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/summarizer"
+    name      = "${var.project_name}-summarizer" 
+    image     = var.summarizer_image_url
     essential = true
-    command   = ["python", "handler.py"]
+    command   = ["python", "-u", "app.py"]
     
     environment = [
       { name = "MSK_BROKERS", value = var.msk_bootstrap_brokers },
       { name = "OPENAI_API_KEY",  value = var.openai_api_key }
     ]
     
-    log_configuration = {
+    logConfiguration = {
       logDriver = "awslogs"
       options = {
-        "awslogs-group"         = "/ecs/summarizer"
-        "awslogs-region"        = "ap-southeast-2"
+        "awslogs-group"         = var.summarizer_logs_group_name
+        "awslogs-region"        = var.aws_region
         "awslogs-stream-prefix" = "ecs"
       }
     }
   }])
 }
 
-resource "aws_ecs_service" "summarizer_service" {
-  name            = "summarizer-service"
-  cluster         = aws_ecs_cluster.summarizer_cluster.id
+resource "aws_ecs_service" "summarizer" {
+  name            = "${var.project_name}-summarizer-service"
+  cluster         = aws_ecs_cluster.summarizer.id
   task_definition = aws_ecs_task_definition.summarizer_task.arn
   desired_count   = 1
-  launch_type     = "FARGATE"  # Explicitly set launch type to Fargate
+  launch_type     = "FARGATE" 
 
   network_configuration {
     subnets          = [var.private_subnet_a_id, var.private_subnet_b_id]
-    security_groups  = [var.ecs_sg_id]
-    assign_public_ip = false  # Typically false for private subnets
+    security_groups  = [var.service_sg_id]
+    assign_public_ip = false  
   }
 }

@@ -1,29 +1,18 @@
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+}
+
 variable "lambda_exec_role_arn" {
   description = "ARN of lambda execution role"
   type        = string
 }
 
-variable "summarizer_lambda_name" {
+variable "msk_topic_creator_lambda_name" {
   type = string
 }
 
-variable "transcriber_lambda_name" {
-  type = string
-}
-
-variable "msk_lambda_name" {
-  type = string
-}
-
-variable "summarizer_lambda_timeout" {
-  type = number
-}
-
-variable "transcriber_lambda_timeout" {
-  type = number
-}
-
-variable "msk_lambda_timeout" {
+variable "msk_topic_creator_lambda_timeout" {
   type = number
 }
 
@@ -42,19 +31,7 @@ variable "lambda_msk_sg_id" {
   type        = string
 }
 
-variable "aws_region" {
-  type = string
-}
-
-variable "msk_cluster_arn" {
-  type        = string
-}
-
 variable "msk_bootstrap_brokers" {
   description = "Comma-separated list of MSK bootstrap brokers"
   type        = string
-}
-
-variable "openai_api_key" {
-  type = string
 }

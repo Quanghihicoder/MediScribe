@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Safety destroy
-# ./destroy.sh
+./destroy.sh
 
 # Delete terraform state bucket
 aws s3 rb s3://mediscribe-terraform --force --region ap-southeast-2

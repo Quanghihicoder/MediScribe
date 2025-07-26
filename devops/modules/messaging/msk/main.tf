@@ -1,5 +1,5 @@
-resource "aws_msk_cluster" "mediscribe" {
-  cluster_name           = "mediscribe-msk-cluster"
+resource "aws_msk_cluster" "cluster" {
+  cluster_name           = "${var.project_name}-msk-cluster"
   kafka_version          = "2.8.1"
   number_of_broker_nodes = 2
 

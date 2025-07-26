@@ -1,3 +1,3 @@
-output "msk_function_name" {
-  value = aws_lambda_function.msk_lambda.function_name
+output "msk_topic_creator_function_name" {
+  value = aws_lambda_function.msk_topic_creator_lambda.function_name
 }

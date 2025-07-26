@@ -1,3 +1,9 @@
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+  default = "mediscribe"
+}
+
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -35,7 +41,17 @@ variable "public_route_table_id" {
   type        = string
 }
 
-variable "ecs_image_url" {
+variable "backend_image_url" {
+  description = "Container Image URL in ECR"
+  type        = string
+}
+
+variable "summarizer_image_url" {
+  description = "Container Image URL in ECR"
+  type        = string
+}
+
+variable "transcriber_image_url" {
   description = "Container Image URL in ECR"
   type        = string
 }

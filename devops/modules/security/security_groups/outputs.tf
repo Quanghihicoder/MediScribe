@@ -1,5 +1,9 @@
-output "ecs_sg_id" {
-  value = aws_security_group.ecs_sg.id
+output "backend_sg_id" {
+  value = aws_security_group.backend_sg.id
+}
+
+output "service_sg_id" {
+  value = aws_security_group.service_sg.id
 }
 
 output "alb_sg_id" {

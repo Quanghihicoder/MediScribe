@@ -26,36 +26,28 @@ provider "aws" {
 ######################
 
 locals {
-  app_name = "mediscribe"
+  app_name = var.project_name
 
-  backend_domain = "api.mediscribe.quangtechnologies.com"
+  backend_domain = "api.${var.project_name}.quangtechnologies.com"
   app_buckets = {
     frontend = {
-      name            = "mediscribe-frontend"
-      domain          = "mediscribe.quangtechnologies.com"
-      origin_id       = "mediscribefrontendS3Origin"
-      oac_name        = "mediscribe-frontend-oac"
-      oac_description = "OAC for MediScribe Frontend"
+      name            = "frontend"
+      domain          = "${var.project_name}.quangtechnologies.com"
+      origin_id       = "${var.project_name}frontendS3Origin"
+      oac_name        = "frontend-oac"
+      oac_description = "OAC for Frontend"
     }
 
   }
   logs_buckets = {
     alb = {
-      name = "mediscribe-alb-logs"
+      name = "alb-logs"
     }
   }
 
   lambdas = {
-    summarizer = {
-      name    = "summarizer"
-      timeout = 900 # 1 minute
-    }
-    transcriber = {
-      name    = "transcriber"
-      timeout = 900 # 1 minute
-    }
-    msk = {
-      name    = "msk"
+    msk_topic_creator = {
+      name    = "msk_topic_creator"
       timeout = 60 # 1 minute
     }
   }
@@ -64,6 +56,7 @@ locals {
 module "s3" {
   source = "./modules/storage/s3"
 
+  project_name = var.project_name
   app_buckets  = local.app_buckets
   logs_buckets = local.logs_buckets
   region_id    = var.region_id
@@ -72,6 +65,7 @@ module "s3" {
 module "networking" {
   source = "./modules/networking"
 
+  project_name          = var.project_name
   vpc_id                = var.vpc_id
   az_a                  = var.aza
   az_b                  = var.azb
@@ -81,12 +75,14 @@ module "networking" {
 module "security_groups" {
   source = "./modules/security/security_groups"
 
-  vpc_id = var.vpc_id
+  project_name = var.project_name
+  vpc_id       = var.vpc_id
 }
 
 module "msk" {
   source = "./modules/messaging/msk"
 
+  project_name        = var.project_name
   private_subnet_a_id = module.networking.private_subnet_a_id
   private_subnet_b_id = module.networking.private_subnet_b_id
   msk_sg_id           = module.security_groups.msk_sg_id
@@ -95,16 +91,20 @@ module "msk" {
 module "iam" {
   source = "./modules/security/iam"
 
+  project_name    = var.project_name
   msk_cluster_arn = module.msk.msk_cluster_arn
 }
 
 module "logs" {
   source = "./modules/logs"
+
+  project_name = var.project_name
 }
 
 module "cdn" {
   source = "./modules/cdn"
 
+  project_name                     = var.project_name
   hosted_zone_id                   = var.hosted_zone_id
   app_buckets                      = local.app_buckets
   app_bucket_regional_domain_names = module.s3.app_bucket_regional_domain_names
@@ -114,6 +114,7 @@ module "cdn" {
 module "alb" {
   source = "./modules/load_balancing/alb"
 
+  project_name       = var.project_name
   public_subnet_a_id = module.networking.public_subnet_a_id
   public_subnet_b_id = module.networking.public_subnet_b_id
   vpc_id             = var.vpc_id
@@ -126,6 +127,7 @@ module "alb" {
 module "route53" {
   source = "./modules/load_balancing/route53"
 
+  project_name   = var.project_name
   hosted_zone_id = var.hosted_zone_id
   app_buckets    = local.app_buckets
   cdn_domains    = module.cdn.cdn_domains
@@ -139,47 +141,50 @@ module "route53" {
 module "ecs" {
   source = "./modules/compute/ecs"
 
-  public_subnet_a_id        = module.networking.public_subnet_a_id
-  ecs_task_exec_role_arn    = module.iam.ecs_task_exec_role_arn
-  ecs_sg_id                 = module.security_groups.ecs_sg_id
-  ecs_logs_group_name       = module.logs.ecs_logs_group_name
-  ecs_image_url             = var.ecs_image_url
-  iam_instance_profile_name = module.iam.iam_instance_profile_name
-  alb_target_group_arn      = module.alb.alb_target_group_arn
-  app_name                  = local.app_name
-  aws_region                = var.aws_region
-  frontend_url              = "https://${local.app_buckets.frontend.domain}"
-  msk_bootstrap_brokers = module.msk.msk_bootstrap_brokers
+  project_name = var.project_name
+  aws_region   = var.aws_region
+
+  public_subnet_a_id  = module.networking.public_subnet_a_id
   private_subnet_a_id = module.networking.private_subnet_a_id
   private_subnet_b_id = module.networking.private_subnet_b_id
-  openai_api_key = var.openai_api_key
 
-  depends_on = [ module.topics ]
+  backend_sg_id                 = module.security_groups.backend_sg_id
+  service_sg_id                 = module.security_groups.service_sg_id
+  backend_instance_profile_name = module.iam.backend_instance_profile_name
+  backend_task_exec_role_arn    = module.iam.backend_task_exec_role_arn
+  service_execution_role_arn    = module.iam.service_execution_role_arn
+  service_task_exec_role_arn    = module.iam.service_task_exec_role_arn
+  backend_image_url             = var.backend_image_url
+  transcriber_image_url         = var.transcriber_image_url
+  summarizer_image_url          = var.summarizer_image_url
+  backend_logs_group_name       = module.logs.backend_logs_group_name
+  transcriber_logs_group_name   = module.logs.transcriber_logs_group_name
+  summarizer_logs_group_name    = module.logs.summarizer_logs_group_name
+  alb_target_group_arn          = module.alb.alb_target_group_arn
+  frontend_url                  = "https://${local.app_buckets.frontend.domain}"
+  msk_bootstrap_brokers         = module.msk.msk_bootstrap_brokers
+  openai_api_key                = var.openai_api_key
+
+  depends_on = [module.topics]
 }
 
 module "lambda" {
   source = "./modules/compute/lambda"
 
-  private_subnet_a_id        = module.networking.private_subnet_a_id
-  private_subnet_b_id        = module.networking.private_subnet_b_id
-  summarizer_lambda_name     = local.lambdas.summarizer.name
-  summarizer_lambda_timeout  = local.lambdas.summarizer.timeout
-  transcriber_lambda_name    = local.lambdas.transcriber.name
-  transcriber_lambda_timeout = local.lambdas.transcriber.timeout
-  msk_lambda_name            = local.lambdas.msk.name
-  msk_lambda_timeout         = local.lambdas.msk.timeout
-  lambda_msk_sg_id           = module.security_groups.lambda_msk_sg_id
-  lambda_exec_role_arn       = module.iam.lambda_exec_role_arn
-  aws_region                 = var.aws_region
-  msk_cluster_arn = module.msk.msk_cluster_arn
-  msk_bootstrap_brokers      = module.msk.msk_bootstrap_brokers
-  openai_api_key             = var.openai_api_key
+  project_name                     = var.project_name
+  private_subnet_a_id              = module.networking.private_subnet_a_id
+  private_subnet_b_id              = module.networking.private_subnet_b_id
+  msk_topic_creator_lambda_name    = local.lambdas.msk_topic_creator.name
+  msk_topic_creator_lambda_timeout = local.lambdas.msk_topic_creator.timeout
+  lambda_msk_sg_id                 = module.security_groups.lambda_msk_sg_id
+  lambda_exec_role_arn             = module.iam.lambda_exec_role_arn
+  msk_bootstrap_brokers            = module.msk.msk_bootstrap_brokers
 }
 
 module "topics" {
   source = "./modules/messaging/topics"
 
-  msk_function_name = module.lambda.msk_function_name
+  msk_topic_creator_function_name = module.lambda.msk_topic_creator_function_name
 
   depends_on = [module.msk, module.lambda]
 }
@@ -187,8 +192,9 @@ module "topics" {
 module "auto_scaling" {
   source = "./modules/auto_scaling"
 
-  ecs_cluster_name = module.ecs.ecs_cluster_name
-  ecs_service_name = module.ecs.ecs_service_name
+  project_name             = var.project_name
+  backend_ecs_cluster_name = module.ecs.backend_ecs_cluster_name
+  backend_ecs_service_name = module.ecs.backend_ecs_service_name
 
   depends_on = [module.ecs]
 }

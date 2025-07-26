@@ -1,6 +1,7 @@
 @echo off
+
 REM Safety destroy
-REM destroy.bat
+destroy.bat
 
 REM Delete terraform state bucket
 aws s3 rb s3://mediscribe-terraform --force --region ap-southeast-2

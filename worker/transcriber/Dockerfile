@@ -1,4 +1,3 @@
-# Use Python base image
 FROM python:3.10-slim
 
 # Install system dependencies
@@ -16,7 +15,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
-COPY . .
+COPY app.py .
+
+# Pre-download the Whisper model during build
+RUN python -c "import whisper; whisper.load_model('base')"
 
 # Run the script
-CMD ["python", "-u", "handler.py"]
+CMD ["python", "-u", "app.py"]

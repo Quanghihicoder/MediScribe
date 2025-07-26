@@ -5,7 +5,7 @@ resource "aws_subnet" "public_a" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "mediscribe-public-subnet"
+    Name = "${var.project_name}-public-subnet-a"
   }
 }
 
@@ -16,7 +16,7 @@ resource "aws_subnet" "public_b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "mediscribe-public-subnet"
+    Name = "${var.project_name}-public-subnet-b"
   }
 }
 
@@ -26,7 +26,7 @@ resource "aws_subnet" "private_a" {
   availability_zone = var.az_a
 
   tags = {
-    Name = "mediscribe-private-subnet"
+    Name = "${var.project_name}-private-subnet-a"
   }
 }
 
@@ -36,7 +36,7 @@ resource "aws_subnet" "private_b" {
   availability_zone = var.az_b
 
   tags = {
-    Name = "mediscribe-private-subnet"
+    Name = "${var.project_name}-private-subnet-b"
   }
 }
 
@@ -50,43 +50,36 @@ resource "aws_route_table_association" "public_assoc_b" {
   route_table_id = var.public_route_table_id
 }
 
-
-
-# ==================
-
-# Elastic IP for NAT Gateway
+# NAT Gateway for ECS Fargate on private subnet to pull ECR image
 resource "aws_eip" "nat" {
   domain = "vpc"
   tags = {
-    Name = "mediscribe-nat-eip"
+    Name = "${var.project_name}-nat-eip"
   }
 }
 
-# NAT Gateway in public subnet
-resource "aws_nat_gateway" "mediscribe_nat" {
+resource "aws_nat_gateway" "service_nat" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_a.id  # Using public_a, but can use public_b for HA
+  subnet_id     = aws_subnet.public_a.id 
 
   tags = {
-    Name = "mediscribe-nat-gateway"
+    Name = "${var.project_name}-nat-gateway"
   }
 }
 
-# Private route table (new)
 resource "aws_route_table" "private" {
   vpc_id = var.vpc_id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.mediscribe_nat.id
+    nat_gateway_id = aws_nat_gateway.service_nat.id
   }
 
   tags = {
-    Name = "mediscribe-private-rt"
+    Name = "${var.project_name}-private-rt"
   }
 }
 
-# Associate private subnets with NAT route table
 resource "aws_route_table_association" "private_assoc_a" {
   subnet_id      = aws_subnet.private_a.id
   route_table_id = aws_route_table.private.id
@@ -97,9 +90,8 @@ resource "aws_route_table_association" "private_assoc_b" {
   route_table_id = aws_route_table.private.id
 }
 
-# Add explicit route to ECR endpoint (optional but recommended)
 resource "aws_route" "ecr_access" {
   route_table_id         = aws_route_table.private.id
   destination_cidr_block = "3.104.83.140/32"  # ECR API endpoint in ap-southeast-2
-  nat_gateway_id         = aws_nat_gateway.mediscribe_nat.id
+  nat_gateway_id         = aws_nat_gateway.service_nat.id
 }

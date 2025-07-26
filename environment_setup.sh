@@ -10,7 +10,6 @@ cd frontend
 cp .env.template .env
 cd ..
 
-
 # Set up summarizer environment
 read -p "Enter your openai token: " TOKEN
 cd worker/summarizer

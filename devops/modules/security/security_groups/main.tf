@@ -1,5 +1,5 @@
 resource "aws_security_group" "alb_sg" {
-  name        = "mediscribe-alb-sg"
+  name        = "${var.project_name}-alb-sg"
   description = "Allow inbound traffic"
   vpc_id      = var.vpc_id
 
@@ -28,8 +28,8 @@ resource "aws_security_group" "alb_sg" {
 }
 
 
-resource "aws_security_group" "ecs_sg" {
-  name        = "mediscribe-ecs-ec2-sg"
+resource "aws_security_group" "backend_sg" {
+  name        = "${var.project_name}-backend-sg"
   description = "SG for ECS EC2"
   vpc_id      = var.vpc_id
 
@@ -77,14 +77,62 @@ resource "aws_security_group" "ecs_sg" {
   #   protocol    = "-1"
   #   cidr_blocks = ["0.0.0.0/0"]
   # }
-
-  tags = {
-    Name = "mediscribe-ecs-ec2-sg"
-  }
 }
 
+resource "aws_security_group" "service_sg" {
+  name        = "${var.project_name}-service-sg"
+  description = "SG for ECS Fargate"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # ingress {
+  #   from_port       = 80
+  #   to_port         = 80
+  #   protocol        = "tcp"
+  #   security_groups = [aws_security_group.alb_sg.id]
+  #   # cidr_blocks     = ["0.0.0.0/0"]
+  # }
+
+  # ingress {
+  #   from_port       = 443
+  #   to_port         = 443
+  #   protocol        = "tcp"
+  #   security_groups = [aws_security_group.alb_sg.id]
+  #   # cidr_blocks     = ["0.0.0.0/0"]
+  # }
+
+  # ingress {
+  #   from_port       = 8000
+  #   to_port         = 8000
+  #   protocol        = "tcp"
+  #   security_groups = [aws_security_group.alb_sg.id]
+  #   # cidr_blocks     = ["0.0.0.0/0"]
+  # }
+
+  # egress {
+  #   from_port   = 0
+  #   to_port     = 0
+  #   protocol    = "-1"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
+}
+
+
 resource "aws_security_group" "msk_sg" {
-  name        = "mediscribe-msk-sg"
+  name        = "${var.project_name}-msk-sg"
   description = "Security group for MSK cluster"
   vpc_id      = var.vpc_id
 
@@ -130,7 +178,7 @@ resource "aws_security_group" "msk_sg" {
 
 
 resource "aws_security_group" "lambda_msk_sg" {
-  name        = "mediscribe-lambda-msk-sg"
+  name        = "${var.project_name}-lambda-msk-sg"
   description = "Security group for Lambda to access MSK"
   vpc_id      = var.vpc_id
 

@@ -1,3 +1,8 @@
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+}
+
 variable "private_subnet_a_id" {
   description = "ID of the private subnet A"
   type        = string
