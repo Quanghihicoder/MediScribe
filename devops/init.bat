@@ -3,15 +3,18 @@
 REM Create ECR
 aws ecr create-repository ^
   --repository-name mediscribe/backend ^
-  --region ap-southeast-2
+  --region ap-southeast-2 ^
+  --no-cli-pager
 
 aws ecr create-repository ^
   --repository-name mediscribe/transcriber ^
-  --region ap-southeast-2
+  --region ap-southeast-2 ^
+  --no-cli-pager
 
 aws ecr create-repository ^
   --repository-name mediscribe/summarizer ^
-  --region ap-southeast-2
+  --region ap-southeast-2 ^
+  --no-cli-pager
 
 REM Create Terraform bucket
 aws s3 mb s3://mediscribe-terraform --region ap-southeast-2

@@ -21,7 +21,7 @@ cd ../worker/msk_topic_creator/
 ./build.sh
 
 cd ../../frontend
-npm install
+npm install --no-fund --no-audit
 npm run build
 
 cd ../devops

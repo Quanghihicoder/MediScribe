@@ -1,4 +1,5 @@
 @echo off
+
 REM Authenticate to ECR
 aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com
 
@@ -18,9 +19,9 @@ docker push 058264550947.dkr.ecr.ap-southeast-2.amazonaws.com/mediscribe/summari
 cd ..\worker\msk_topic_creator\
 call build.bat
 
-cd ..\..\frontend
-npm install
-npm run build
+cd ..\frontend
+call npm install --no-fund --no-audit
+call npm run build
 
 cd ..\devops
 terraform init
